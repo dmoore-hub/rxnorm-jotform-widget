@@ -25,7 +25,7 @@ label { display: block; margin-bottom: 4px; font-weight: 600; }
 <div id="statusMsg"></div>
 
 <script>
-JFCustomWidget.subscribe("ready", function () {
+(function () {
   const input = document.getElementById("medicationSearch");
   const wrap = document.getElementById("searchWrap");
   const list = document.getElementById("suggestions");
@@ -114,13 +114,23 @@ JFCustomWidget.subscribe("ready", function () {
     if (!wrap.contains(e.target)) hideList();
   });
 
-  JFCustomWidget.subscribe("submit", function () {
-    JFCustomWidget.sendSubmit({
-      valid: input.value.trim().length > 0,
-      value: input.value.trim()
+  function notifyResize() {
+    if (window.JFCustomWidget && JFCustomWidget.requestFrameResize) {
+      JFCustomWidget.requestFrameResize({ height: document.body.scrollHeight + 20 });
+    }
+  }
+  input.addEventListener("input", notifyResize);
+
+  if (window.JFCustomWidget) {
+    JFCustomWidget.subscribe("ready", notifyResize);
+    JFCustomWidget.subscribe("submit", function () {
+      JFCustomWidget.sendSubmit({
+        valid: input.value.trim().length > 0,
+        value: input.value.trim()
+      });
     });
-  });
-});
+  }
+})();
 </script>
 </body>
 </html>
