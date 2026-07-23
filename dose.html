@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dose or Strength</title>
+<script src="https://js.jotform.com/JotFormCustomWidget.min.js"></script>
+<style>
+body { font-family: -apple-system, Helvetica, Arial, sans-serif; margin: 8px; font-size: 14px; }
+#doseInput { width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
+#hint { font-size: 12px; color: #888; margin-top: 4px; min-height: 14px; }
+</style>
+</head>
+<body>
+<input type="text" id="doseInput" list="doseOptions" placeholder="e.g., 500 mg" autocomplete="off">
+<datalist id="doseOptions"></datalist>
+<div id="hint"></div>
+
+<script>
+(function () {
+  var input = document.getElementById("doseInput");
+  var datalist = document.getElementById("doseOptions");
+  var hint = document.getElementById("hint");
+
+  function setOptions(strengths, medName) {
+    datalist.innerHTML = "";
+    (strengths || []).forEach(function (s) {
+      var trimmed = (s || "").trim();
+      if (!trimmed) return;
+      var opt = document.createElement("option");
+      opt.value = trimmed;
+      datalist.appendChild(opt);
+    });
+    hint.textContent = (strengths && strengths.length)
+      ? "Common strengths loaded for " + medName + " - pick one or type your own."
+      : "";
+    notifyResize();
+  }
+
+  try {
+    window.top.addEventListener("message", function (e) {
+      var d = e && e.data;
+      if (!d || d.source !== "amarillomd-rxnorm-widget" || d.type !== "medication-selected") return;
+      setOptions(d.strengths, d.name);
+    });
+  } catch (err) {}
+
+  function notifyResize() {
+    if (window.JFCustomWidget && JFCustomWidget.requestFrameResize) {
+      JFCustomWidget.requestFrameResize({ height: document.body.scrollHeight + 20 });
+    }
+  }
+  input.addEventListener("input", notifyResize);
+
+  if (window.JFCustomWidget) {
+    JFCustomWidget.subscribe("ready", notifyResize);
+    JFCustomWidget.subscribe("submit", function () {
+      JFCustomWidget.sendSubmit({
+        valid: true,
+        value: input.value.trim()
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>
