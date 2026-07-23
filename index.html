@@ -46,13 +46,19 @@ label { display: block; margin-bottom: 4px; font-weight: 600; }
   }
 
   function broadcastSelection(name, strengths) {
+    var payload = {
+      source: "amarillomd-rxnorm-widget",
+      type: "medication-selected",
+      name: name,
+      strengths: strengths || []
+    };
+    try { window.top.postMessage(payload, "*"); } catch (err) {}
     try {
-      window.top.postMessage({
-        source: "amarillomd-rxnorm-widget",
-        type: "medication-selected",
-        name: name,
-        strengths: strengths || []
-      }, "*");
+      if (window.top && window.top.frames) {
+        for (var i = 0; i < window.top.frames.length; i++) {
+          try { window.top.frames[i].postMessage(payload, "*"); } catch (e) {}
+        }
+      }
     } catch (err) {}
   }
 
