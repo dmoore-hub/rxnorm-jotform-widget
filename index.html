@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+  <html lang="en">
+  <head>
+  <meta charset="UTF-8">
+  <meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Medication Search</title>
+
+  <script src="https://js.jotform.com/JotFormCustomWidget.min.js"></script>
+  </head>
+
+  <body>
+  <label for="medicationSearch">
+  Medication name
+</label>
+
+  <input
+  type="text"
+  id="medicationSearch"
+  placeholder="Start typing a medication..."
+  autocomplete="off"
+  >
+
+  <script>
+  JFCustomWidget.subscribe("ready", function () {
+  const medicationInput =
+  document.getElementById("medicationSearch");
+
+JFCustomWidget.subscribe("submit", function () {
+  JFCustomWidget.sendSubmit({
+    valid: medicationInput.value.trim().length > 0,
+    value: medicationInput.value.trim()
+    });
+});
+});
+</script>
+  </body>
+  </html>
+  
