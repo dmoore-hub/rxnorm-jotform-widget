@@ -34,25 +34,40 @@ label { display: block; margin-bottom: 4px; font-weight: 600; }
   var debounceTimer = null;
   var activeIndex = -1;
   var currentItems = [];
+  var currentStrengths = [];
   var requestToken = 0;
 
   function hideList() {
     list.style.display = "none";
     list.innerHTML = "";
     currentItems = [];
+    currentStrengths = [];
     activeIndex = -1;
   }
 
-  function selectValue(name) {
+  function broadcastSelection(name, strengths) {
+    try {
+      window.top.postMessage({
+        source: "amarillomd-rxnorm-widget",
+        type: "medication-selected",
+        name: name,
+        strengths: strengths || []
+      }, "*");
+    } catch (err) {}
+  }
+
+  function selectValue(name, strengths) {
     input.value = name;
     hideList();
     statusMsg.textContent = "";
     input.focus();
+    broadcastSelection(name, strengths);
   }
 
-  function renderList(names) {
+  function renderList(names, strengthsList) {
     list.innerHTML = "";
     currentItems = names;
+    currentStrengths = strengthsList || [];
     activeIndex = -1;
     if (!names.length) { hideList(); return; }
     names.forEach(function (name, idx) {
@@ -61,7 +76,7 @@ label { display: block; margin-bottom: 4px; font-weight: 600; }
       item.setAttribute("data-idx", String(idx));
       item.addEventListener("mousedown", function (e) {
         e.preventDefault();
-        selectValue(name);
+        selectValue(name, currentStrengths[idx]);
       });
       list.appendChild(item);
     });
@@ -71,14 +86,16 @@ label { display: block; margin-bottom: 4px; font-weight: 600; }
   function search(term) {
     var myToken = ++requestToken;
     statusMsg.textContent = "Searching...";
-    var url = "https://clinicaltables.nlm.nih.gov/api/rxterms/v3/search?maxList=10&terms=" + encodeURIComponent(term);
+    var url = "https://clinicaltables.nlm.nih.gov/api/rxterms/v3/search?maxList=10&terms=" + encodeURIComponent(term) + "&ef=STRENGTHS_AND_FORMS";
     fetch(url)
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (myToken !== requestToken) return;
         var names = (data && data[1]) || [];
+        var extra = (data && data[2]) || {};
+        var strengthsList = extra.STRENGTHS_AND_FORMS || [];
         statusMsg.textContent = names.length ? "" : "No matches found.";
-        renderList(names);
+        renderList(names, strengthsList);
       })
       .catch(function () {
         if (myToken !== requestToken) return;
@@ -100,7 +117,7 @@ label { display: block; margin-bottom: 4px; font-weight: 600; }
     if (e.key === "ArrowDown") { e.preventDefault(); activeIndex = Math.min(activeIndex + 1, items.length - 1); }
     else if (e.key === "ArrowUp") { e.preventDefault(); activeIndex = Math.max(activeIndex - 1, 0); }
     else if (e.key === "Enter") {
-      if (activeIndex >= 0 && currentItems[activeIndex]) { e.preventDefault(); selectValue(currentItems[activeIndex]); }
+      if (activeIndex >= 0 && currentItems[activeIndex]) { e.preventDefault(); selectValue(currentItems[activeIndex], currentStrengths[activeIndex]); }
       return;
     } else if (e.key === "Escape") { hideList(); return; }
     else { return; }
