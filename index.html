@@ -1,42 +1,126 @@
 <!DOCTYPE html>
-  <html lang="en">
-  <head>
-  <meta charset="UTF-8">
-  <meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0"
-  >
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Medication Search</title>
+<script src="https://js.jotform.com/JotFormCustomWidget.min.js"></script>
+<style>
+body { font-family: -apple-system, Helvetica, Arial, sans-serif; margin: 8px; font-size: 14px; }
+label { display: block; margin-bottom: 4px; font-weight: 600; }
+#searchWrap { position: relative; max-width: 100%; }
+#medicationSearch { width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
+#suggestions { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #ccc; border-top: none; border-radius: 0 0 4px 4px; max-height: 220px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 4px 8px rgba(0,0,0,0.08); }
+#suggestions div { padding: 7px 10px; cursor: pointer; }
+#suggestions div:hover, #suggestions div.active { background: #eef3ff; }
+#statusMsg { font-size: 12px; color: #888; margin-top: 4px; min-height: 14px; }
+</style>
+</head>
+<body>
+<label for="medicationSearch">Medication name</label>
+<div id="searchWrap">
+<input type="text" id="medicationSearch" placeholder="Start typing a medication..." autocomplete="off">
+<div id="suggestions"></div>
+</div>
+<div id="statusMsg"></div>
 
-  <title>Medication Search</title>
+<script>
+JFCustomWidget.subscribe("ready", function () {
+  const input = document.getElementById("medicationSearch");
+  const wrap = document.getElementById("searchWrap");
+  const list = document.getElementById("suggestions");
+  const statusMsg = document.getElementById("statusMsg");
 
-  <script src="https://js.jotform.com/JotFormCustomWidget.min.js"></script>
-  </head>
+  var debounceTimer = null;
+  var activeIndex = -1;
+  var currentItems = [];
+  var requestToken = 0;
 
-  <body>
-  <label for="medicationSearch">
-  Medication name
-</label>
+  function hideList() {
+    list.style.display = "none";
+    list.innerHTML = "";
+    currentItems = [];
+    activeIndex = -1;
+  }
 
-  <input
-  type="text"
-  id="medicationSearch"
-  placeholder="Start typing a medication..."
-  autocomplete="off"
-  >
+  function selectValue(name) {
+    input.value = name;
+    hideList();
+    statusMsg.textContent = "";
+    input.focus();
+  }
 
-  <script>
-  JFCustomWidget.subscribe("ready", function () {
-  const medicationInput =
-  document.getElementById("medicationSearch");
-
-JFCustomWidget.subscribe("submit", function () {
-  JFCustomWidget.sendSubmit({
-    valid: medicationInput.value.trim().length > 0,
-    value: medicationInput.value.trim()
+  function renderList(names) {
+    list.innerHTML = "";
+    currentItems = names;
+    activeIndex = -1;
+    if (!names.length) { hideList(); return; }
+    names.forEach(function (name, idx) {
+      var item = document.createElement("div");
+      item.textContent = name;
+      item.setAttribute("data-idx", String(idx));
+      item.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+        selectValue(name);
+      });
+      list.appendChild(item);
     });
-});
+    list.style.display = "block";
+  }
+
+  function search(term) {
+    var myToken = ++requestToken;
+    statusMsg.textContent = "Searching...";
+    var url = "https://clinicaltables.nlm.nih.gov/api/rxterms/v3/search?maxList=10&terms=" + encodeURIComponent(term);
+    fetch(url)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (myToken !== requestToken) return;
+        var names = (data && data[1]) || [];
+        statusMsg.textContent = names.length ? "" : "No matches found.";
+        renderList(names);
+      })
+      .catch(function () {
+        if (myToken !== requestToken) return;
+        statusMsg.textContent = "Search unavailable right now — you can still type the medication name manually.";
+        hideList();
+      });
+  }
+
+  input.addEventListener("input", function () {
+    var term = input.value.trim();
+    clearTimeout(debounceTimer);
+    if (term.length < 2) { hideList(); statusMsg.textContent = ""; return; }
+    debounceTimer = setTimeout(function () { search(term); }, 250);
+  });
+
+  input.addEventListener("keydown", function (e) {
+    if (list.style.display !== "block") return;
+    var items = list.querySelectorAll("div");
+    if (e.key === "ArrowDown") { e.preventDefault(); activeIndex = Math.min(activeIndex + 1, items.length - 1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); activeIndex = Math.max(activeIndex - 1, 0); }
+    else if (e.key === "Enter") {
+      if (activeIndex >= 0 && currentItems[activeIndex]) { e.preventDefault(); selectValue(currentItems[activeIndex]); }
+      return;
+    } else if (e.key === "Escape") { hideList(); return; }
+    else { return; }
+    items.forEach(function (el, idx) { el.classList.toggle("active", idx === activeIndex); });
+    items[activeIndex].scrollIntoView({ block: "nearest" });
+  });
+
+  input.addEventListener("blur", function () { setTimeout(hideList, 150); });
+
+  document.addEventListener("click", function (e) {
+    if (!wrap.contains(e.target)) hideList();
+  });
+
+  JFCustomWidget.subscribe("submit", function () {
+    JFCustomWidget.sendSubmit({
+      valid: input.value.trim().length > 0,
+      value: input.value.trim()
+    });
+  });
 });
 </script>
-  </body>
-  </html>
-  
+</body>
+</html>
